@@ -1,0 +1,45 @@
+body {
+	font-family: sans-serif;
+}
+#header {
+	text-align: center;
+	font-family: sans-serif;
+}
+#topmenu {
+	
+}
+
+#location{
+	float: left;
+	width: 300px;
+	text-align: center;
+}
+div div img {
+	display: inline;
+}
+#areatype{
+	float: left;
+	width: 100px;
+}
+#reset{
+	float: left;
+	border: 2px solid black;
+	border-radius: 10px;
+	background-color: blue;
+	color: white;
+	width: 100px;
+	position: relative;
+	text-align: center;
+	margin-top: 20px;
+	margin-left: 20px;
+}
+#right{
+	float:right;
+}
+#radiusSlider{
+	width: 400px;
+	float: right;
+}
+#svg-col {
+	clear: left;
+}

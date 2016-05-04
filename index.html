@@ -1,0 +1,231 @@
+<html>
+
+<head>
+	<link type-"text/css" rel="stylesheet" href="stylesheet.css"/>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+	<script type="text/javascript" src="script.js"></script>
+	<link rel="stylesheet" href="d3.slider.css" />  
+	<title>Crime Around You</title>
+</head>
+
+<body>
+	<script src="https://d3js.org/d3.v3.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/1.10.0/d3-legend.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/1.10.0/d3-legend.min.js"></script>
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="d3.slider.js"></script>
+	<div id="header"><h1>CRIME AROUND YOU</h1></div>
+	<div id="topmenu">
+		<div id="areatype">
+			<h3>Area:</h3>
+			<form action="">
+  				<input type="radio" name="area" value="union"> Union<br>
+  				<input type="radio" name="area" value="intersect"> Intersect<br>
+			</form>
+		</div>
+		<div id="right">
+			<h3>Choose search radius:</h3>
+			<div id="radiusSlider"></div>
+			<h3>Choose day of the week:</h3>
+			<input id="daySlider" type="range" min="0" max="6" value="0" step="1"/><br>
+			<span id="range">Monday</span>
+		</div>
+	</div> 
+
+	<div id="svg-col"></div>
+	<script>
+	var rawData;
+	d3.json("data/scpd_incidents.json",function(error,data){
+		if (error) return console.error(error);
+		rawData = data;
+		visualize(data);
+	});
+
+	function visualize(data){
+		//console.log(data.data);
+		var filtered_data = data.data.filter(allFilters);
+		//console.log(filtered_data);
+		var colorScale = d3.scale.category20();
+
+		function allFilters(incident){
+			//return incident.DayOfWeek === 'Monday';
+			var pointX = projection(incident.Location)[0];
+			var pointY = projection(incident.Location)[1];
+			var houseX = houseRadius.attr("cx");
+			var houseY = houseRadius.attr("cy");
+			var workX = workRadius.attr("cx");
+			var workY = workRadius.attr("cy");
+			var rad = radiusChoice;
+			var houseDistance = Math.sqrt(Math.pow((houseX-pointX),2)+Math.pow((houseY-pointY),2));
+			var workDistance = Math.sqrt(Math.pow((workX-pointX),2)+Math.pow((workY-pointY),2));
+			if (d3.select('input[name="area"]:checked').node().value ==='intersect'){
+				return houseDistance<rad && workDistance<rad && incident.DayOfWeek === inputValue;
+			} else {
+				return houseDistance<rad || workDistance<rad && incident.DayOfWeek === inputValue;
+			}
+		}
+			
+
+		var circles = svg.selectAll("circle").data(filtered_data);
+		circles.exit().remove();
+		circles.enter()
+			.append("circle")
+			.attr("r",3)
+			.attr("data-id",function(incident){return incident.IncidentNumber;})
+			.attr("cx",function(incident){return projection(incident.Location)[0];})
+			.attr("cy",function(incident){return projection(incident.Location)[1];})
+			.attr("fill",function(incident){return colorScale(incident.Category);})
+			.attr("data-legend",function(incident){return incident.Category;})
+			.style("opacity",0.5);
+
+
+		//Legend	
+		svg.append("g")
+			.attr("class", "color_legend")
+			.attr("transform","translate(750,20)");
+
+		var color_legend = d3.legend.color()
+			.shape("circle")
+			.shapePadding(5)
+			.scale(colorScale);
+
+		svg.select(".color_legend")
+			.call(color_legend);
+	}
+
+
+	// Set up size
+	var width = 1100,
+		height = 2000;
+
+	// Set up projection that map is using
+	var projection = d3.geo.mercator()
+		.center([-122.433701, 37.767683]) // San Francisco, roughly
+		.scale(225000)
+		.translate([750 / 2, 750 / 2]);
+	// This is the mapping between <longitude, latitude> position to <x, y> pixel position on the map
+	// projection([lon, lat]) returns [x, y]
+
+	// Add an svg element to the DOM
+	var svg = d3.select("#svg-col").append("svg")
+		.attr("width", width)
+		.attr("height", height)
+
+	//For dragging
+	var drag = d3.behavior.drag()  
+             .on('dragstart', startdragging)
+             .on('drag', mover)
+             .on('dragend', enddragging);
+    
+	// Add svg map at correct size, assumes map is saved in a subdirectory called "data"
+	svg.append("image")
+        .attr("width", 750)
+        .attr("height", 750)
+        .attr("xlink:href", "data/sf-map.svg");
+
+    //Adding the icons
+    var house = svg.append("image")
+        .attr("width", 80)
+        .attr("height", 80)
+        .attr('x',20)
+        .attr('y',20)
+        .call(drag)
+        .attr("xlink:href", "http://www.free-icons-download.net/images/small-house-with-a-chimney-icon-70053.png");
+	
+	var work = svg.append("image")
+        .attr("width", 70)
+        .attr("height", 70)
+        .attr('x',100)
+        .attr('y',20)
+        .call(drag)
+        .attr("xlink:href", "https://cdn3.iconfinder.com/data/icons/work-4/154/office-work-tie-round-form-512.png");
+  	var radiusChoice = 100;
+  	//Radius slider
+    d3.select("#radiusSlider").call(d3.slider()
+    	.axis(d3.svg.axis().orient("top"))
+    	.min(100)
+    	.max(300)
+    	.on("slide",function(evt,value){
+    		radiusChoice = value;
+    		houseRadius.attr("r",radiusChoice);
+    		workRadius.attr("r",radiusChoice);
+    		clipCut.attr("r",radiusChoice);
+    		clipFill.attr("r",radiusChoice);
+    		visualize(rawData);
+    	}));
+    //Radius drawing and ClipPath definition for intersection
+    var houseRadius = svg.append("circle")
+     	.attr("cx", house.attr("x"))
+     	.attr("cy", house.attr("y"))
+     	.attr("dx", 80)
+     	.attr("r", radiusChoice)
+     	.style("stroke","black")
+     	.style("fill","none");
+
+    var clipCut = svg.append("clipPath")
+    	.attr("id", "house-radius-clip")
+    	.append("circle")
+    	.attr("cx", houseRadius.attr("cx"))
+    	.attr("cy", houseRadius.attr("cy"))
+    	.attr("r", radiusChoice);
+
+    var workRadius = svg.append("circle")
+     	.attr("cx", work.attr("x"))
+     	.attr("cy", work.attr("y"))
+     	.attr("r", radiusChoice)
+     	.style("stroke","black")
+     	.style("fill","none");
+
+     var clipFill = svg.append("circle")
+     	.attr("cx", workRadius.attr("cx"))
+     	.attr("cy", workRadius.attr("cy"))
+     	.attr("r", radiusChoice)
+     	.attr("clip-path", "url(#house-radius-clip)")
+     	.style("fill", "lightgrey")
+     	.style("opacity",0.5);
+
+	var inputValue = "Monday";
+	var day= ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+	d3.select("#daySlider").on("input",function() {
+		update(+this.value);
+	});
+
+	function update(value){
+		document.getElementById("range").innerHTML=day[value];
+		inputValue = day[value];
+		visualize(rawData);
+	}
+
+	function startdragging() { 
+		d3.select(this).style('opacity', 0.5);
+		houseRadius.attr("r","0px");
+		workRadius.attr("r","0px");
+	}
+
+	function mover () {
+  		d3.select(this)
+    		.attr("x", d3.event.x-parseInt(d3.select(this).attr("width")) / 2)
+    		.attr("y", d3.event.y-parseInt(d3.select(this).attr("height")) / 2);
+	}
+
+	function enddragging() { 
+		d3.select(this).style('opacity', 1);
+		houseRadius.attr("cx", house.attr("x"))
+			.attr("cy",house.attr("y"))
+			.attr("r",radiusChoice);
+		clipCut.attr("cx", house.attr("x"))
+			.attr("cy",house.attr("y"))
+			.attr("r",radiusChoice);
+		workRadius.attr("cx", work.attr("x"))
+			.attr("cy", work.attr("y"))
+			.attr("r",radiusChoice);
+		clipFill.attr("cx", work.attr("x"))
+			.attr("cy", work.attr("y"))
+			.attr("r",radiusChoice);
+		visualize(rawData);
+	}
+ 	
+    </script>
+</body>
+
+</html>

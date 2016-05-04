@@ -1,0 +1,20 @@
+$(document).ready(function(){
+	$("#house").mouseenter(function(){
+        $("#house").fadeTo("fast",0.5);
+    });
+	$("#house").mouseleave(function(){
+        $("#house").fadeTo("fast",1);
+    });
+    $("#work").mouseenter(function(){
+        $("#work").fadeTo("fast",0.5);
+    });
+	$("#work").mouseleave(function(){
+        $("#work").fadeTo("fast",1);
+    });
+    $("#reset").mouseenter(function(){
+        $("#reset").fadeTo("fast",0.5);
+    });
+	$("#reset").mouseleave(function(){
+        $("#reset").fadeTo("fast",1);
+    });
+});
